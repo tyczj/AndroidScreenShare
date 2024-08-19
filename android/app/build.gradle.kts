@@ -53,6 +53,7 @@ dependencies {
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -61,7 +62,10 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(platform(libs.okhttp.bom))
     implementation(libs.okhttp)
+    implementation(libs.android.webrtc)
+    implementation(libs.android.webrtc.ktx)
     implementation(libs.ktor.websockets)
+    implementation(libs.android.gson)
     implementation(libs.ktor.core)
     implementation(libs.ktor.cio)
     testImplementation(libs.junit)

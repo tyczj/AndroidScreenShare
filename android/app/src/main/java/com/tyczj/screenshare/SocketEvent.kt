@@ -3,17 +3,17 @@ package com.tyczj.screenshare
 import io.ktor.websocket.CloseReason
 
 sealed class SocketEvent {
-    class Closed(reason: CloseReason?): SocketEvent()
-    class MouseEvent(event: Event): SocketEvent()
-    class IceCandidate(): SocketEvent()
-    class Offer(): SocketEvent()
-    class Answer(): SocketEvent()
+    class Closed(val reason: CloseReason?): SocketEvent()
+    class MouseEvent(val event: Event): SocketEvent()
+    class IceCandidate(val sdpMid: String, val sdpMLineIndex: Int, val sdp: String): SocketEvent()
+    class Offer(val sdp: String): SocketEvent()
+    class Answer(val sdp: String): SocketEvent()
     data object ConnectRequest: SocketEvent()
 }
 
 sealed class Event{
-    class ClickEvent(x: Int, y: Int): Event()
-    class Gesture(startX: Int, startY: Int, endX: Int, endY: Int, duration: Long): Event()
-    class LongPress(x: Int, y: Int): Event()
+    class ClickEvent(val x: Int, val y: Int): Event()
+    class Gesture(val startX: Int, val startY: Int, val endX: Int, val endY: Int, val duration: Long): Event()
+    class LongPress(val x: Int, val y: Int): Event()
     data object RightClick: Event()
 }

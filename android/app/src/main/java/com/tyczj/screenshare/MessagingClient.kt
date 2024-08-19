@@ -16,6 +16,10 @@ import org.json.JSONObject
 
 class MessagingClient {
 
+    companion object{
+        val instance = MessagingClient()
+    }
+
     private val client = HttpClient(CIO) {
         install(WebSockets){
             pingInterval = 30000
@@ -27,7 +31,7 @@ class MessagingClient {
 
     val socketListener = mutableSocketListener.asSharedFlow()
 
-    private suspend fun connect() {
+    suspend fun connect() {
 
         client.webSocket(host = "127.0.0.1", port = 8080, path = "/"){
             session = this
@@ -41,16 +45,30 @@ class MessagingClient {
                                 mutableSocketListener.emit(SocketEvent.ConnectRequest)
                             }
                             "offer" -> {
-
+                                mutableSocketListener.emit(SocketEvent.Offer(json.getString("sdp")))
                             }
                             "answer" -> {
-
+                                mutableSocketListener.emit(SocketEvent.Answer(json.getString("sdp")))
                             }
                             "ice-candidate" -> {
-
+                                mutableSocketListener.emit(SocketEvent.IceCandidate(json.getString("sdpMid"), json.getInt("sdpMLineIndex"), json.getString("sdp")))
                             }
                             "mouseEvent" -> {
-
+                                val event = json.getJSONObject("event")
+                                when(event.getString("type")){
+                                    "click" -> {
+                                        mutableSocketListener.emit(SocketEvent.MouseEvent(Event.ClickEvent(event.getInt("x"), event.getInt("y"))))
+                                    }
+                                    "gesture" -> {
+                                        mutableSocketListener.emit(SocketEvent.MouseEvent(Event.Gesture(event.getInt("startX"), event.getInt("startY"), event.getInt("endX"), event.getInt("endY"), event.getLong("duration"))))
+                                    }
+                                    "longPress" -> {
+                                        mutableSocketListener.emit(SocketEvent.MouseEvent(Event.LongPress(event.getInt("x"), event.getInt("y"))))
+                                    }
+                                    "rightClick" -> {
+                                        mutableSocketListener.emit(SocketEvent.MouseEvent(Event.RightClick))
+                                    }
+                                }
                             }
                         }
                     }
