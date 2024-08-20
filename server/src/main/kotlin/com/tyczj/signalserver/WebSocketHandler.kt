@@ -14,6 +14,7 @@ class WebSocketHandler: TextWebSocketHandler() {
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
         super.afterConnectionEstablished(session)
+        logger.info("Session established: ${session.id}")
         sessions[session.id] = session
     }
 

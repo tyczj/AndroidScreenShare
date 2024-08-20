@@ -43,11 +43,24 @@ class WebRtcClient private constructor() {
     private val peerConnectionFactory by lazy { createPeerConnectionFactory() }
     private val mediaConstraint = MediaConstraints().apply {
         mandatory.add(MediaConstraints.KeyValuePair("offerToReceiveVideo", "true"))
+//        mandatory.add(MediaConstraints.KeyValuePair("IceRestart", "true"))
     }
 
     private val iceServer = listOf(
-        PeerConnection.IceServer.builder("stun:stun2.1.google.com:19302").createIceServer()
+        PeerConnection.IceServer.builder(listOf("stun:stun2.1.google.com:19302", "stun:stun.services.mozilla.com")).createIceServer()
     )
+
+    fun initializePeerConnection(context: Context){
+        close()
+        initPeerConnectionFactory(context)
+    }
+
+    private fun initPeerConnectionFactory(context: Context) {
+        val options = PeerConnectionFactory.InitializationOptions.builder(context)
+            .setEnableInternalTracer(true).setFieldTrials("WebRTC-H264HighProfile/Enabled/")
+            .createInitializationOptions()
+        PeerConnectionFactory.initialize(options)
+    }
 
     private fun createPeerConnectionFactory(): PeerConnectionFactory {
         return PeerConnectionFactory.builder().setVideoDecoderFactory(
@@ -126,6 +139,30 @@ class WebRtcClient private constructor() {
             }catch (e:Exception){
                 e.printStackTrace()
             }
+
+//            addVideo(context)
+        }
+    }
+
+    fun addVideo(context: Context){
+        val defaultDisplay = DisplayManagerCompat.getInstance(context).getDisplay(Display.DEFAULT_DISPLAY)
+        val displayContext = context.createDisplayContext(defaultDisplay!!)
+
+        val screenWidthPixels = displayContext.resources.displayMetrics.widthPixels
+        val screenHeightPixels = displayContext.resources.displayMetrics.heightPixels
+
+        val surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread",eglBaseContext)
+
+        val localVideoSource = peerConnectionFactory.createVideoSource(capturer!!.isScreencast)
+
+        capturer!!.initialize(surfaceTextureHelper,context,localVideoSource.capturerObserver)
+        capturer!!.startCapture(screenWidthPixels,screenHeightPixels,30)
+
+        val localVideoTrack: VideoTrack = peerConnectionFactory.createVideoTrack(UUID.randomUUID().toString(),localVideoSource)
+        try{
+            peerConnection?.addTrack(localVideoTrack, listOf(UUID.randomUUID().toString()))
+        }catch (e:Exception){
+            e.printStackTrace()
         }
     }
 
@@ -169,6 +206,7 @@ class WebRtcClient private constructor() {
     }
 
     fun handleOffer(spd: String){
+        Log.d("WebRtcClient", "Handle offer")
         val json = JSONObject(spd)
         val s = json.getString("sdp")
         val sessionDescription = SessionDescription(SessionDescription.Type.OFFER, s)
@@ -176,6 +214,7 @@ class WebRtcClient private constructor() {
 
             override fun onSetSuccess() {
                 super.onSetSuccess()
+                Log.d("WebRtcClient", "Send answer")
                 answer()
             }
         }, sessionDescription)

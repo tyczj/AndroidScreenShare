@@ -34,8 +34,10 @@ class AcknowledgeConnectionActivity: AppCompatActivity() {
         super.onActivityResult(requestCode, resultCode, data)
 
         if(resultCode == RESULT_OK){
-            lifecycleScope.launch {
-                webRtcClient.startScreenCapture(this@AcknowledgeConnectionActivity, data!!)
+//            lifecycleScope.launch {
+                val intent = Intent(this@AcknowledgeConnectionActivity, MediaService::class.java)
+                intent.putExtra(Intent.EXTRA_INTENT, data)
+                startForegroundService(intent)
                 val defaultDisplay = DisplayManagerCompat.getInstance(this@AcknowledgeConnectionActivity).getDisplay(Display.DEFAULT_DISPLAY)
                 val displayContext = createDisplayContext(defaultDisplay!!)
 
@@ -47,7 +49,7 @@ class AcknowledgeConnectionActivity: AppCompatActivity() {
                 json.put("screenWidth", screenWidthPixels)
                 json.put("screenHeight", screenHeightPixels)
                 signalingServer.sendMessage(json.toString())
-            }
+//            }
         }
 
         finish()

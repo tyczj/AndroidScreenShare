@@ -21,16 +21,14 @@ import org.webrtc.IceCandidate
 import org.webrtc.SessionDescription
 import kotlin.coroutines.CoroutineContext
 
-class RemoteService: AccessibilityService(), WebRtcClient.WebRtcClientListener, CoroutineScope {
+class RemoteService: AccessibilityService(), MessagingClient.MouseListener, CoroutineScope {
 
     private val supervisor = SupervisorJob()
     override val coroutineContext: CoroutineContext
         get() = Dispatchers.Main.immediate + supervisor
     private var job: Job? = null
 
-    private val gson = Gson()
     private val signalServer = MessagingClient.instance
-    private val webRtcClient = WebRtcClient.instance
 
     override fun onAccessibilityEvent(p0: AccessibilityEvent?) {
 
@@ -47,64 +45,57 @@ class RemoteService: AccessibilityService(), WebRtcClient.WebRtcClientListener, 
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        webRtcClient.listener = this
-        job = launch {
-            signalServer.connect()
-            signalServer.socketListener.collect {socketEvent ->
-                when(socketEvent){
-                    is SocketEvent.ConnectRequest -> {
-                        val intent = Intent(this@RemoteService, AcknowledgeConnectionActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        startActivity(intent)
-                    }
-                    is SocketEvent.Closed -> {
+        signalServer.mouseListener = this
 
-                    }
-                    is SocketEvent.Answer -> {
-                        webRtcClient.handleAnswer(socketEvent.sdp)
-                    }
-                    is SocketEvent.IceCandidate -> {
-                        val iceCandidate = IceCandidate(socketEvent.sdpMid,socketEvent.sdpMLineIndex,socketEvent.sdp)
-                        webRtcClient.addIceCandidate(iceCandidate)
-                    }
-                    is SocketEvent.MouseEvent -> {
-                        when(val mouseEvent = socketEvent.event){
-                            is Event.ClickEvent -> {
-                                val path = Path()
-                                path.moveTo(mouseEvent.x.toFloat(), mouseEvent.y.toFloat())
+//        job = launch {
+//            signalServer.socketListener.collect {socketEvent ->
+//                when(socketEvent){
+//                    is SocketEvent.ConnectRequest -> {
+//                        val intent = Intent(this@RemoteService, AcknowledgeConnectionActivity::class.java)
+//                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+//                        startActivity(intent)
+//                    }
+//                    is SocketEvent.MouseEvent -> {
+//                        when(val mouseEvent = socketEvent.event){
+//                            is Event.ClickEvent -> {
+//                                val path = Path()
+//                                path.moveTo(mouseEvent.x.toFloat(), mouseEvent.y.toFloat())
+//
+//                                val clickStroke = StrokeDescription(path, 0, 1)
+//                                val clickBuilder = GestureDescription.Builder()
+//                                clickBuilder.addStroke(clickStroke);
+//                                dispatchGesture(clickBuilder.build(), null, null)
+//                            }
+//                            is Event.Gesture -> {
+//                                val path = Path()
+//                                path.moveTo(mouseEvent.startX.toFloat(), mouseEvent.startY.toFloat())
+//                                path.lineTo(mouseEvent.endX.toFloat(), mouseEvent.endY.toFloat())
+//                                val sd = StrokeDescription(path, 0, mouseEvent.duration)
+//                                val gd = GestureDescription.Builder().addStroke(sd).build()
+//                                dispatchGesture(gd, null, null)
+//                            }
+//                            is Event.LongPress -> {
+//                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                                    val path = Path()
+//                                    path.moveTo(mouseEvent.x.toFloat(), mouseEvent.y.toFloat())
+//                                    val gd = GestureDescription.Builder().addStroke(StrokeDescription(path, 0, 1, true)).build()
+//                                    dispatchGesture(gd, null, null)
+//                                }
+//                            }
+//                            Event.RightClick -> {
+//                                performGlobalAction(GLOBAL_ACTION_BACK)
+//                            }
+//                        }
+//                    }
+//
+//                    else -> {}
+//                }
+//            }
+//        }
 
-                                val clickStroke = StrokeDescription(path, 0, 1)
-                                val clickBuilder = GestureDescription.Builder()
-                                clickBuilder.addStroke(clickStroke);
-                                dispatchGesture(clickBuilder.build(), null, null)
-                            }
-                            is Event.Gesture -> {
-                                val path = Path()
-                                path.moveTo(mouseEvent.startX.toFloat(), mouseEvent.startY.toFloat())
-                                path.lineTo(mouseEvent.endX.toFloat(), mouseEvent.endY.toFloat())
-                                val sd = StrokeDescription(path, 0, mouseEvent.duration)
-                                val gd = GestureDescription.Builder().addStroke(sd).build()
-                                dispatchGesture(gd, null, null)
-                            }
-                            is Event.LongPress -> {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                    val path = Path()
-                                    path.moveTo(mouseEvent.x.toFloat(), mouseEvent.y.toFloat())
-                                    val gd = GestureDescription.Builder().addStroke(StrokeDescription(path, 0, 1, true)).build()
-                                    dispatchGesture(gd, null, null)
-                                }
-                            }
-                            Event.RightClick -> {
-                                performGlobalAction(GLOBAL_ACTION_BACK)
-                            }
-                        }
-                    }
-                    is SocketEvent.Offer -> {
-                        webRtcClient.handleOffer(socketEvent.sdp)
-                    }
-                }
-            }
-        }
+//        launch {
+//            signalServer.connect()
+//        }
 
         val info = AccessibilityServiceInfo()
         if (Build.VERSION.SDK_INT >= 33) {
@@ -115,33 +106,42 @@ class RemoteService: AccessibilityService(), WebRtcClient.WebRtcClientListener, 
         setServiceInfo(info)
     }
 
-    override fun onIceCandidateAdded(candidate: IceCandidate) {
-        launch {
-            val json = JSONObject()
-            json.put("type", "ice-candidate")
-            json.put("candidate", gson.toJson(candidate))
-            json.put("sdpMLineIndex", candidate.sdpMLineIndex)
-            json.put("sdpMid", candidate.sdpMid)
-            json.put("sdp", candidate.sdp)
-            signalServer.sendMessage(json.toString())
+    override fun onMouseEvent(event: Event) {
+        when(event){
+            is Event.ClickEvent -> {
+                val path = Path()
+                path.moveTo(event.x.toFloat(), event.y.toFloat())
+
+                val clickStroke = StrokeDescription(path, 0, 1)
+                val clickBuilder = GestureDescription.Builder()
+                clickBuilder.addStroke(clickStroke);
+                dispatchGesture(clickBuilder.build(), null, null)
+            }
+            is Event.Gesture -> {
+                val path = Path()
+                path.moveTo(event.startX.toFloat(), event.startY.toFloat())
+                path.lineTo(event.endX.toFloat(), event.endY.toFloat())
+                val sd = StrokeDescription(path, 0, event.duration)
+                val gd = GestureDescription.Builder().addStroke(sd).build()
+                dispatchGesture(gd, null, null)
+            }
+            is Event.LongPress -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val path = Path()
+                    path.moveTo(event.x.toFloat(), event.y.toFloat())
+                    val gd = GestureDescription.Builder().addStroke(StrokeDescription(path, 0, 1, true)).build()
+                    dispatchGesture(gd, null, null)
+                }
+            }
+            Event.RightClick -> {
+                performGlobalAction(GLOBAL_ACTION_BACK)
+            }
         }
     }
 
-    override fun sendAnswer(desc: SessionDescription) {
-        launch {
-            val json = JSONObject()
-            json.put("type", "answer")
-            json.put("sdp", gson.toJson(desc))
-            signalServer.sendMessage(json.toString())
-        }
-    }
-
-    override fun sendOffer(desc: SessionDescription) {
-        launch {
-            val json = JSONObject()
-            json.put("type", "offer")
-            json.put("sdp", gson.toJson(desc))
-            signalServer.sendMessage(json.toString())
-        }
+    override fun onConnect() {
+        val intent = Intent(this@RemoteService, AcknowledgeConnectionActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
     }
 }

@@ -66,10 +66,11 @@ function longPress(){
 }
 
 function connect(){
-    signalingServer = new WebSocket("ws://localhost:8080")
+    signalingServer = new WebSocket("ws://localhost:8888")
 
     signalingServer.onopen = function() {
         console.log('Connected to signal server');
+        signalingServer.send(JSON.stringify({type: "connectRequest" }))
     }
 
     signalingServer.onmessage = function(message) {
@@ -128,10 +129,11 @@ function connect(){
     }
 
     signalingServer.onclose = function(event){
+        console.log(`Connection closed ${event.reason}`)
         closeVideoCall();
-        setTimeout(function() {
-            connect();
-        }, 10000);
+        // setTimeout(function() {
+        //     connect();
+        // }, 10000);
     }
 
     signalingServer.onerror = function(event){
@@ -150,6 +152,7 @@ function createPeerConnection(){
     };
 
     peerConnection.ontrack = (event) => {
+        console.log(`Streams: ${event.streams.length}`)
         remoteVideo.srcObject = event.streams[0];
 
         if(remoteVideo.srcObject){
@@ -166,6 +169,7 @@ function createPeerConnection(){
 
     peerConnection.onnegotiationneeded = (event) => {
         console.log("Renegotiation needed")
+        createOffer()
     }
 }
 
@@ -173,7 +177,7 @@ function createOffer(){
     peerConnection.createOffer({
         offerToReceiveVideo: true,
     }).then(function(offer) {
-        console.log(`Creating offer: ${offer}`)
+        console.log(`Creating offer`)
         return peerConnection.setLocalDescription(offer);
     }).then(function() {
         signalingServer.send(JSON.stringify({ type: "offer", sdp: peerConnection.localDescription }));
