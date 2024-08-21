@@ -102,7 +102,7 @@ class MessagingClient {
 //                                        mutableSocketListener.emit(SocketEvent.MouseEvent(Event.ClickEvent(event.getInt("x"), event.getInt("y"))))
                             }
                             "gesture" -> {
-                                mouseListener?.onMouseEvent(Event.Gesture(event.getInt("startX"), event.getInt("startY"), event.getInt("endX"), event.getInt("endY"), event.getLong("duration")))
+                                mouseListener?.onMouseEvent(Event.Gesture(event.getInt("xInitial"), event.getInt("yInitial"), event.getInt("xFinal"), event.getInt("yFinal"), event.getLong("time")))
 //
 //                                        mutableSocketListener.emit(SocketEvent.MouseEvent(Event.Gesture(event.getInt("startX"), event.getInt("startY"), event.getInt("endX"), event.getInt("endY"), event.getLong("duration"))))
                             }
